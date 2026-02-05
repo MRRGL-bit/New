@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { MapPin, Utensils, Play, ExternalLink, ChevronRight, Star, Plus, ChevronLeft, Map as MapIcon, Navigation, Heart } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { MapPin, Utensils, Play, ExternalLink, ChevronRight, Star, Plus, ChevronLeft, Map as MapIcon, Navigation, Heart, Share2, Copy, Check, Search } from 'lucide-react';
 
 
 const WISH_STORAGE_KEY = 'k-drama-hunters-wishlist';
@@ -20,16 +20,81 @@ const DramaTravelGuide = () => {
    }
  });
  const [heroSlideIndex, setHeroSlideIndex] = useState(0);
+ const [shareOpen, setShareOpen] = useState(false);
+ const [copied, setCopied] = useState(false);
+ const [searchQuery, setSearchQuery] = useState('');
+ const [searchFocused, setSearchFocused] = useState(false);
+ const shareRef = useRef(null);
+ const searchRef = useRef(null);
 
+ useEffect(() => {
+   const handleClickOutside = (e) => {
+     if (shareRef.current && !shareRef.current.contains(e.target)) setShareOpen(false);
+     if (searchRef.current && !searchRef.current.contains(e.target)) setSearchFocused(false);
+   };
+   document.addEventListener('click', handleClickOutside);
+   return () => document.removeEventListener('click', handleClickOutside);
+ }, []);
+
+ const shareUrl = typeof window !== 'undefined' ? window.location.href : '';
+ const shareTitle = 'K Drama Hunters - 드라마 촬영지 여행 가이드';
+
+ const copyUrl = async () => {
+   try {
+     await navigator.clipboard.writeText(shareUrl);
+     setCopied(true);
+     setTimeout(() => setCopied(false), 2000);
+   } catch (_) {}
+ };
+
+ const shareLinks = {
+   kakao: `https://story.kakao.com/share?url=${encodeURIComponent(shareUrl)}`,
+   facebook: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`,
+   twitter: `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}&text=${encodeURIComponent(shareTitle)}`,
+ };
+
+ const getLocationHashtags = (location) => {
+   if (!location) return [];
+   const region = location.region.replace(/\s+/g, '');
+   const fromName = location.name.replace(/\s+/g, '').replace(/[&()]/g, '').slice(0, 12);
+   const base = [region, `${region}여행`, '드라마촬영지'];
+   const list = [...new Set([...base, fromName])].filter(Boolean);
+   return list.slice(0, 5);
+ };
+
+ const getInstagramTagUrl = (tag) => {
+   const safe = String(tag).replace(/[#\/?&]/g, '').trim() || '드라마촬영지';
+   return `https://www.instagram.com/explore/tags/${safe}/`;
+ };
 
  const getSearchUrl = (query) => `https://search.naver.com/search.naver?query=${encodeURIComponent(query)}`;
  const getYoutubeLink = (videoId) => `https://www.youtube.com/watch?v=${videoId}`;
  const getThumbnail = (videoId, quality = 'maxresdefault') => `https://img.youtube.com/vi/${videoId}/${quality}.jpg`;
  const getGoogleMapEmbedUrl = (query) => `https://maps.google.com/maps?q=${encodeURIComponent(query)}&t=&z=14&ie=UTF8&iwloc=&output=embed`;
+ const getGoogleMapSearchUrl = (query) => `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`;
+ const getNaverMapSearchUrl = (query) => `https://map.naver.com/v5/search/${encodeURIComponent(query)}`;
 
+ const GoogleMapIcon = ({ className = "w-5 h-5" }) => (
+   <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+     <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 110-5 2.5 2.5 0 010 5z" />
+   </svg>
+ );
+ const NaverMapIcon = ({ className = "w-5 h-5" }) => (
+   <svg className={className} viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+     <path d="M16.273 12.845L7.376 0H0v24h7.727V11.155L16.624 24H24V0h-7.727v12.845z" />
+   </svg>
+ );
 
- // 드라마별 포스터 및 메타 정보
- const mediaList = [
+ /** 코드에 첨부한 이미지 링크를 변경·재할당하지 못하도록 읽기 전용으로 고정 */
+ const deepFreeze = (obj) => {
+   if (obj === null || typeof obj !== 'object') return obj;
+   Object.freeze(obj);
+   Object.keys(obj).forEach((k) => { if (typeof obj[k] === 'object' && obj[k] !== null) deepFreeze(obj[k]); });
+   return obj;
+ };
+
+ // 드라마별 포스터 및 메타 정보 (이미지 URL 변경 금지)
+ const mediaList = deepFreeze([
    {
      id: 'Tangerines',
      title: "폭싹 속았수다",
@@ -43,7 +108,7 @@ const DramaTravelGuide = () => {
    {
      id: 'goblin',
      title: "도깨비",
-     image: "https://mblogthumb-phinf.pstatic.net/MjAyMTAzMDZfMTM0/MDAxNjE1MDA4ODY3NzY0.8kNnKk4v3jT0pblt4ykZx1YrT3rLp7booyGsBtE39vgg.Q369LsIDofXrhe9QcyMlop0ouoSE7NGL0XwbHZaHPXYg.JPEG.kgwst0320/1_%EF%BC%881%EF%BC%89.jpg?type=w800",
+     image: "https://i.namu.wiki/i/3pIwf61pBklLV5daiqsg2xiAJCoE-YL4DyokkDJgAMW3AHCcNFI2-3fKJXyqUPEBB_sbJpIv0mektKjqGlifyA.webp",
      type: "tvN 드라마",
      functional: true,
      cast: "공유, 김고은, 이동욱",
@@ -80,11 +145,11 @@ const DramaTravelGuide = () => {
      genre: "판타지, 액션, 아이돌",
      tone: "화려한, 긴박한"
    }
- ];
+ ]);
 
 
- // 드라마별 장면 데이터
- const scenesData = {
+ // 드라마별 장면 데이터 (이미지 URL 변경 금지)
+ const scenesData = deepFreeze({
    'Tangerines': [
      {
        title: "유채꽃밭 속의 찬란한 약속",
@@ -411,7 +476,7 @@ const DramaTravelGuide = () => {
          address: "인천광역시 옹진군 자월면 승봉리",
          desc: "솔로지옥 시리즈의 상징인 무인도입니다. 시즌 5에서는 더욱 광활해진 해변과 강화된 서바이벌 규칙으로 출연자들의 본능적인 로맨스를 자극하는 장소입니다.",
          url: getSearchUrl("사승봉도 솔로지옥"),
-         image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=1200&q=80"
+         image: "https://cdn.hapt.co.kr/news/photo/201507/31813_687_10.JPG"
        },
        restaurants: [
          {
@@ -419,21 +484,21 @@ const DramaTravelGuide = () => {
            menu: "자연산 회 & 매운탕",
            desc: "지옥도 입구인 승봉도에서 맛볼 수 있는 신선한 해산물 요리입니다.",
            url: getSearchUrl("승봉도 맛집"),
-           image: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&w=600&q=80"
+           image: "https://d12zq4w4guyljn.cloudfront.net/750_750_20260110075718_photo1_719f75d5d6ae.webp"
          },
          {
            name: "무인도 캠핑 푸드",
            menu: "해산물 직화 라면",
            desc: "지옥도 감성을 그대로 느낄 수 있는 야외 직화 요리 스타일입니다.",
            url: getSearchUrl("사승봉도 캠핑"),
-           image: "https://images.unsplash.com/photo-1526318896980-cf78c088247c?auto=format&fit=crop&w=600&q=80"
+           image: "https://recipe1.ezmember.co.kr/cache/recipe/2025/04/24/11acd01ac6711fea5a9ec3fd57777a371.jpg"
          },
          {
            name: "인천항 연안부두",
            menu: "밴댕이 회무침",
            desc: "섬으로 떠나기 전 인천에서 즐길 수 있는 별미 중 하나입니다.",
            url: getSearchUrl("인천 연안부두 맛집"),
-           image: "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=600&q=80"
+           image: "https://img1.daumcdn.net/thumb/R1280x0.fjpg/?fname=http://t1.daumcdn.net/brunch/service/user/5SXp/image/CMyMFkxKAR_DJ87GG4TKA5drUAw.jpg"
          }
        ],
        attractions: [
@@ -466,7 +531,7 @@ const DramaTravelGuide = () => {
          address: "인천광역시 중구 공항문화로 127",
          desc: "시즌 5의 새로운 천국도 랜드마크입니다. 150m 길이의 LED 천장에서 펼쳐지는 환상적인 디지털 아트 쇼가 커플들의 로맨틱한 분위기를 극대화합니다.",
          url: getSearchUrl("인스파이어 리조트 오로라"),
-         image: "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=1200&q=80"
+         image: "https://admin.inspireresorts.com/sites/default/files/2024-02/0104%20Aurora%20(6)_0.jpg"
        },
        restaurants: [
          {
@@ -474,7 +539,7 @@ const DramaTravelGuide = () => {
            menu: "드라이 에이징 스테이크",
            desc: "리조트 내 위치한 최고급 다이닝으로, 완벽한 천국도 데이트를 완성합니다.",
            url: getSearchUrl("인스파이어 마이클 조던 스테이크"),
-           image: "https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=600&q=80"
+           image: "https://admin.inspireresorts.com/sites/default/files/2024-03/04-header_2.jpg"
          },
          {
            name: "가든 팜 카페",
@@ -488,7 +553,7 @@ const DramaTravelGuide = () => {
            menu: "프렌치 스타일 다이닝",
            desc: "화려한 열기구 컨셉의 바에서 즐기는 로맨틱한 밤의 다이닝입니다.",
            url: getSearchUrl("인스파이어 브라세리 1783"),
-           image: "https://images.unsplash.com/photo-1569718212165-3a8278d5f624?auto=format&fit=crop&w=600&q=80"
+           image: "https://ugc-images.catchtable.co.kr/catchtable/shopinfo/sStse7IX3A7ihdVk--tJZLg/6400049b840a4d878a98e88f2ab6a036"
          }
        ],
        attractions: [
@@ -496,7 +561,7 @@ const DramaTravelGuide = () => {
            name: "로툰다 (Rotunda)",
            desc: "움직이는 대형 키네틱 샹들리에가 연출하는 압도적인 예술적 공간입니다.",
            url: getSearchUrl("인스파이어 로툰다"),
-           image: "https://images.unsplash.com/photo-1554188248-986adbb73be4?auto=format&fit=crop&w=600&q=80"
+           image: "https://admin.inspireresorts.com/sites/default/files/2024-03/L3730128.JPG"
          },
          {
            name: "을왕리 해변",
@@ -508,7 +573,7 @@ const DramaTravelGuide = () => {
            name: "영종도 마시안 해변",
            desc: "갯벌 체험과 베이커리 카페로 유명한 데이트 명소입니다.",
            url: getSearchUrl("마시안 해변"),
-           image: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80"
+           image: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRUf5GlG9gLANlJKHgfen1t_vchiiZHAWtr-g&s"
          }
        ]
      },
@@ -521,7 +586,7 @@ const DramaTravelGuide = () => {
          address: "인천광역시 중구 공항문화로 127 리조트 내",
          desc: "사계절 내내 즐길 수 있는 실내 워터파크입니다. 투명한 유리 돔 아래에서 펼쳐지는 커플들의 과감하고 시원한 데이트 장소입니다.",
          url: getSearchUrl("인스파이어 스플래시 베이"),
-         image: "https://images.unsplash.com/photo-1506744038136-46273834b3fb?auto=format&fit=crop&w=1200&q=80"
+         image: "https://admin.inspireresorts.com/sites/default/files/2025-11/Splash%20Bay%20-%20Splash%20Bay%20Pool%20Dome%20img.png"
        },
        restaurants: [
          {
@@ -529,21 +594,21 @@ const DramaTravelGuide = () => {
            menu: "정통 중식 요리",
            desc: "물놀이 후 즐기는 고급스럽고 든든한 중식 다이닝입니다.",
            url: getSearchUrl("인스파이어 홍반"),
-           image: "https://images.unsplash.com/photo-1559339352-11d035aa65de?auto=format&fit=crop&w=600&q=80"
+           image: "https://admin.inspireresorts.com/sites/default/files/2024-03/05_3.jpg"
          },
          {
            name: "히로키",
            menu: "컨템포러리 일식",
            desc: "정갈한 일식 코스로 천국도의 품격을 더해주는 레스토랑입니다.",
            url: getSearchUrl("인스파이어 히로키"),
-           image: "https://images.unsplash.com/photo-1519708227418-c8fd9a32b7a2?auto=format&fit=crop&w=600&q=80"
+           image: "https://d12zq4w4guyljn.cloudfront.net/750_750_20250108100903_photo1_e829952808f4.webp"
          },
          {
            name: "오아시스 고메 빌리지",
            menu: "푸드 코트",
            desc: "리조트 내 다양한 맛집들을 한 번에 만나볼 수 있는 푸드홀입니다.",
            url: getSearchUrl("인스파이어 오아시스 고메 빌리지"),
-           image: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80"
+           image: "https://admin.inspireresorts.com/sites/default/files/2024-05/BMK02162-%ED%8E%B8%EC%A7%91_1.jpg"
          }
        ],
        attractions: [
@@ -551,7 +616,7 @@ const DramaTravelGuide = () => {
            name: "파라다이스 시티 씨메르",
            desc: "인근의 또 다른 럭셔리 스파 시설로, 힐링 투어 코스로 제격입니다.",
            url: getSearchUrl("파라다이스 씨메르"),
-           image: "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=600&q=80"
+           image: "https://www.p-city.com/upload_file/202507_A/1752041341407.jpg"
          },
          {
            name: "인천공항 전망대",
@@ -563,7 +628,7 @@ const DramaTravelGuide = () => {
            name: "왕산 마리나",
            desc: "요트 체험이 가능한 곳으로 천국도급 럭셔리 여행의 정점을 찍을 수 있습니다.",
            url: getSearchUrl("왕산 마리나 요트"),
-           image: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=600&q=80"
+           image: "https://www.wangsanmarina.co.kr/upload/visualImage/20181107636772079316440577.jpg"
          }
        ]
      }
@@ -735,8 +800,62 @@ const DramaTravelGuide = () => {
        ]
      }
    ]
+ });
+
+
+ const getSearchResults = (q) => {
+   const query = (q || '').trim();
+   if (!query) return [];
+   const lower = query.toLowerCase();
+   const results = [];
+   const seen = new Set();
+   const key = (dramaId, sceneIdx, type, label) => `${dramaId}-${sceneIdx ?? ''}-${type}-${label}`;
+   mediaList.forEach((drama) => {
+     if (!drama.functional) return;
+     if (drama.title.includes(query) || drama.id.toLowerCase().includes(lower)) {
+       const k = key(drama.id, null, 'drama', drama.title);
+       if (!seen.has(k)) { seen.add(k); results.push({ type: '작품', label: drama.title, dramaId: drama.id, sceneIndex: 0 }); }
+     }
+     if (drama.cast.includes(query)) {
+       const k = key(drama.id, null, 'cast', drama.title);
+       if (!seen.has(k)) { seen.add(k); results.push({ type: '주연', label: drama.cast, dramaId: drama.id, sceneIndex: 0, subLabel: drama.title }); }
+     }
+     const scenes = scenesData[drama.id] || [];
+     scenes.forEach((scene, sceneIdx) => {
+       if (scene.location.region.includes(query)) {
+         const k = key(drama.id, sceneIdx, 'region', scene.location.region);
+         if (!seen.has(k)) { seen.add(k); results.push({ type: '지역', label: scene.location.region, dramaId: drama.id, sceneIndex: sceneIdx, subLabel: drama.title }); }
+       }
+       if (scene.location.name.includes(query) || (scene.location.address && scene.location.address.includes(query))) {
+         const k = key(drama.id, sceneIdx, 'place', scene.location.name);
+         if (!seen.has(k)) { seen.add(k); results.push({ type: '장소', label: scene.location.name, dramaId: drama.id, sceneIndex: sceneIdx, subLabel: drama.title }); }
+       }
+       (scene.restaurants || []).forEach((r) => {
+         if (r.name.includes(query)) {
+           const k = key(drama.id, sceneIdx, 'rest', r.name);
+           if (!seen.has(k)) { seen.add(k); results.push({ type: '장소', label: r.name, dramaId: drama.id, sceneIndex: sceneIdx, subLabel: drama.title }); }
+         }
+       });
+       (scene.attractions || []).forEach((a) => {
+         if (a.name.includes(query)) {
+           const k = key(drama.id, sceneIdx, 'attr', a.name);
+           if (!seen.has(k)) { seen.add(k); results.push({ type: '장소', label: a.name, dramaId: drama.id, sceneIndex: sceneIdx, subLabel: drama.title }); }
+         }
+       });
+     });
+   });
+   return results.slice(0, 20);
  };
 
+ const searchResults = getSearchResults(searchQuery);
+
+ const goToSearchResult = (item) => {
+   setSelectedDrama(item.dramaId);
+   setActiveScene(item.sceneIndex ?? 0);
+   setView('detail');
+   setSearchQuery('');
+   setSearchFocused(false);
+ };
 
  const currentDrama = mediaList.find(m => m.id === selectedDrama);
  const currentScenes = scenesData[selectedDrama] || [];
@@ -787,15 +906,6 @@ const DramaTravelGuide = () => {
    }, 5000);
    return () => clearInterval(t);
  }, []);
-
- // Google Analytics: SPA 뷰 전환 시 page_view 전송
- useEffect(() => {
-   if (typeof window.gtag === 'function') {
-     const pagePath = view === 'home' ? '/' : `/detail/${selectedDrama}`;
-     const pageTitle = view === 'home' ? 'K Drama Hunters - 홈' : `K Drama Hunters - ${currentDrama?.title || selectedDrama}`;
-     window.gtag('event', 'page_view', { page_path: pagePath, page_title: pageTitle });
-   }
- }, [view, selectedDrama, currentDrama?.title]);
 
 
  const heroItem = mediaList[heroSlideIndex];
@@ -933,11 +1043,11 @@ const DramaTravelGuide = () => {
 
        <section className="relative mb-12">
          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
-           {/* Sidebar Scene Selection */}
-           <div className="lg:col-span-3 space-y-6 lg:sticky lg:top-24 h-fit">
-             <h3 className="text-lg font-bold flex items-center gap-2 text-white text-left">
-                <span className="w-1 h-5 bg-red-600 inline-block"></span>
-                에피소드 및 장면
+           {/* Sidebar Scene Selection - 스크롤 시 상단에 고정되어 따라감 */}
+           <div className="lg:col-span-3 space-y-6 lg:sticky lg:top-24 self-start max-h-[calc(100vh-6rem)] lg:overflow-y-auto lg:overflow-x-hidden lg:pr-1">
+             <h3 className="text-lg font-bold flex items-center gap-2 text-white text-left shrink-0">
+               <span className="w-1 h-5 bg-red-600 inline-block"></span>
+               에피소드 및 장면
              </h3>
              <div className="space-y-4">
                {currentScenes.map((scene, idx) => (
@@ -957,8 +1067,8 @@ const DramaTravelGuide = () => {
                      </div>
                    </div>
                    <div className="bg-zinc-900 p-3">
-                      <h4 className="font-bold text-xs truncate text-white">{scene.title}</h4>
-                      <p className="text-[10px] text-zinc-500 mt-1 uppercase tracking-tighter font-bold">Famous Scene {idx + 1}</p>
+                     <h4 className="font-bold text-xs truncate text-white">{scene.title}</h4>
+                     <p className="text-[10px] text-zinc-500 mt-1 uppercase tracking-tighter font-bold">Famous Scene {idx + 1}</p>
                    </div>
                  </button>
                ))}
@@ -967,12 +1077,12 @@ const DramaTravelGuide = () => {
 
              {/* Drama Meta Info */}
              <div className="bg-zinc-900/50 p-6 rounded-xl border border-zinc-800 space-y-4 backdrop-blur-sm hidden lg:block text-white">
-                <h4 className="text-xs font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-2">작품 상세</h4>
-                <div className="space-y-3 text-xs">
-                   <p><span className="text-zinc-500 font-bold mr-2 uppercase tracking-tighter">Cast</span> {currentDrama.cast}</p>
-                   <p><span className="text-zinc-500 font-bold mr-2 uppercase tracking-tighter">Genre</span> {currentDrama.genre}</p>
-                   <p><span className="text-zinc-500 font-bold mr-2 uppercase tracking-tighter">Tone</span> {currentDrama.tone}</p>
-                </div>
+               <h4 className="text-xs font-black text-zinc-400 uppercase tracking-widest border-b border-zinc-800 pb-2">작품 상세</h4>
+               <div className="space-y-3 text-xs">
+                 <p><span className="text-zinc-500 font-bold mr-2 uppercase tracking-tighter">Cast</span> {currentDrama.cast}</p>
+                 <p><span className="text-zinc-500 font-bold mr-2 uppercase tracking-tighter">Genre</span> {currentDrama.genre}</p>
+                 <p><span className="text-zinc-500 font-bold mr-2 uppercase tracking-tighter">Tone</span> {currentDrama.tone}</p>
+               </div>
              </div>
            </div>
 
@@ -988,7 +1098,7 @@ const DramaTravelGuide = () => {
                  <h2 className="text-3xl md:text-5xl font-black mb-6 tracking-tighter drop-shadow-2xl italic text-white uppercase">{current.title}</h2>
                  <div className="flex gap-3 mb-8">
                    <a href={getYoutubeLink(current.videoId)} target="_blank" rel="noopener noreferrer" className="px-6 md:px-10 py-2.5 md:py-3 bg-white text-black font-black rounded flex items-center gap-2 hover:bg-zinc-200 transition text-sm md:text-lg shadow-xl">
-                      <Play size={24} fill="black" /> 유튜브에서 재생
+                     <Play size={24} fill="black" /> 유튜브에서 재생
                    </a>
                    <button
                      onClick={() => toggleWish(selectedDrama)}
@@ -1006,59 +1116,84 @@ const DramaTravelGuide = () => {
              {/* Info Grid: Location and MAP */}
              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 text-white text-left">
                {/* Location Card */}
-               <a href={current.location.url} target="_blank" rel="noopener noreferrer" className="lg:col-span-2 bg-zinc-900/80 rounded-xl border border-zinc-800 hover:border-red-600 transition backdrop-blur-md group overflow-hidden shadow-lg">
-                 <div className="aspect-video w-full overflow-hidden">
+               <div className="lg:col-span-2 bg-zinc-900/80 rounded-xl border border-zinc-800 hover:border-red-600 transition backdrop-blur-md group overflow-hidden shadow-lg">
+                 <a href={current.location.url} target="_blank" rel="noopener noreferrer" className="block aspect-video w-full overflow-hidden">
                    <img src={current.location.image} alt={current.location.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" />
-                 </div>
+                 </a>
                  <div className="p-8">
                    <div className="flex items-center justify-between mb-8">
                      <div className="flex items-center gap-3 text-red-600"><MapPin size={28} /><h3 className="text-xl font-black uppercase tracking-tighter">Location</h3></div>
-                     <div className="text-xs font-bold text-zinc-500 group-hover:text-white flex items-center gap-1 transition-colors uppercase tracking-widest">상세 정보 보기 <ExternalLink size={14} /></div>
+                     <a href={current.location.url} target="_blank" rel="noopener noreferrer" className="text-xs font-bold text-zinc-500 group-hover:text-white flex items-center gap-1 transition-colors uppercase tracking-widest">상세 정보 보기 <ExternalLink size={14} /></a>
                    </div>
-                   <div className="space-y-5"><h4 className="text-3xl font-black group-hover:text-red-500 transition-colors tracking-tight">{current.location.name}</h4><p className="text-zinc-400 text-sm font-medium leading-snug">{current.location.address}</p></div>
+                   <div className="space-y-5">
+                     <h4 className="text-3xl font-black group-hover:text-red-500 transition-colors tracking-tight">{current.location.name}</h4>
+                     <p className="text-zinc-400 text-sm font-medium leading-snug">{current.location.address}</p>
+                     <div className="flex flex-wrap gap-2 pt-2">
+                       {getLocationHashtags(current.location).map((tag) => (
+                         <a
+                           key={tag}
+                           href={getInstagramTagUrl(tag)}
+                           target="_blank"
+                           rel="noopener noreferrer"
+                           className="inline-flex items-center px-3 py-1.5 rounded-full bg-zinc-800 hover:bg-gradient-to-r hover:from-[#F58529] hover:via-[#DD2A7B] hover:to-[#8134AF] text-zinc-300 hover:text-white text-xs font-bold transition-all"
+                         >
+                           #{tag}
+                         </a>
+                       ))}
+                       <span className="text-[10px] text-zinc-500 self-center ml-1">인스타에서 보기</span>
+                     </div>
+                     <div className="flex gap-2 pt-4 border-t border-zinc-800 mt-4">
+                       <a href={getGoogleMapSearchUrl(current.location.name)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center h-10 w-10 shrink-0 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition" title="구글맵">
+                         <GoogleMapIcon className="w-5 h-5" />
+                       </a>
+                       <a href={getNaverMapSearchUrl(current.location.name)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center h-10 w-10 shrink-0 rounded-lg bg-[#03C75A] hover:bg-[#02b350] text-white transition" title="네이버지도">
+                         <NaverMapIcon className="w-5 h-5" />
+                       </a>
+                     </div>
+                   </div>
                  </div>
-               </a>
+               </div>
 
 
                {/* Tour Map with Interactive Pins */}
                <div className="bg-zinc-900 rounded-xl border border-zinc-800 flex flex-col overflow-hidden h-full shadow-2xl">
-                  <div className="p-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-950">
-                    <h3 className="text-lg font-black flex items-center gap-2 uppercase tracking-tighter">
-                      <MapIcon size={20} className="text-red-600" /> Tour Map
-                    </h3>
-                    <div className="text-[10px] font-bold text-zinc-500 flex items-center gap-1 uppercase tracking-widest">
-                      <Navigation size={12} /> {current.location.region} Area
-                    </div>
-                  </div>
-                  <div className="flex-grow w-full min-h-[300px] relative bg-zinc-800">
-                    <iframe
-                       width="100%"
-                       height="100%"
-                       frameBorder="0"
-                       scrolling="no"
-                       src={getGoogleMapEmbedUrl(mapQuery)}
-                       className="absolute inset-0 grayscale contrast-125 opacity-90 hover:grayscale-0 hover:opacity-100 transition-all duration-500"
-                       title="Google Map"
-                    ></iframe>
-                  </div>
-                  <div className="p-4 bg-zinc-950/80 backdrop-blur-sm space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
-                     <button onClick={() => handlePinClick(current.location.name, 'main')} className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-all ${selectedPin === 'main' ? 'bg-red-900/20 border border-red-600/50' : 'hover:bg-zinc-800 border border-transparent'}`}>
-                       <div className={`w-2 h-2 rounded-full ${selectedPin === 'main' ? 'bg-red-500 animate-pulse' : 'bg-red-900'}`}></div>
-                       <div className="flex-1"><span className={`text-xs font-bold block ${selectedPin === 'main' ? 'text-red-500' : 'text-zinc-300'}`}>{current.location.name}</span></div>
+                 <div className="p-5 border-b border-zinc-800 flex justify-between items-center bg-zinc-950">
+                   <h3 className="text-lg font-black flex items-center gap-2 uppercase tracking-tighter">
+                     <MapIcon size={20} className="text-red-600" /> Tour Map
+                   </h3>
+                   <div className="text-[10px] font-bold text-zinc-500 flex items-center gap-1 uppercase tracking-widest">
+                     <Navigation size={12} /> {current.location.region} Area
+                   </div>
+                 </div>
+                 <div className="flex-grow w-full min-h-[300px] relative bg-zinc-800">
+                   <iframe
+                     width="100%"
+                     height="100%"
+                     frameBorder="0"
+                     scrolling="no"
+                     src={getGoogleMapEmbedUrl(mapQuery)}
+                     className="absolute inset-0 grayscale contrast-125 opacity-90 hover:grayscale-0 hover:opacity-100 transition-all duration-500"
+                     title="Google Map"
+                   ></iframe>
+                 </div>
+                 <div className="p-4 bg-zinc-950/80 backdrop-blur-sm space-y-2 max-h-60 overflow-y-auto custom-scrollbar">
+                   <button onClick={() => handlePinClick(current.location.name, 'main')} className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-all ${selectedPin === 'main' ? 'bg-red-900/20 border border-red-600/50' : 'hover:bg-zinc-800 border border-transparent'}`}>
+                     <div className={`w-2 h-2 rounded-full ${selectedPin === 'main' ? 'bg-red-500 animate-pulse' : 'bg-red-900'}`}></div>
+                     <div className="flex-1"><span className={`text-xs font-bold block ${selectedPin === 'main' ? 'text-red-500' : 'text-zinc-300'}`}>{current.location.name}</span></div>
+                   </button>
+                   {current.restaurants.map((rest, i) => (
+                     <button key={`rest-${i}`} onClick={() => handlePinClick(rest.name, `rest-${i}`)} className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-all ${selectedPin === `rest-${i}` ? 'bg-blue-900/20 border border-blue-600/50' : 'hover:bg-zinc-800 border border-transparent'}`}>
+                       <div className={`w-2 h-2 rounded-full ${selectedPin === `rest-${i}` ? 'bg-blue-500' : 'bg-blue-900'}`}></div>
+                       <div className="flex-1"><span className={`text-xs font-bold block ${selectedPin === `rest-${i}` ? 'text-blue-500' : 'text-zinc-300'}`}>{rest.name}</span></div>
                      </button>
-                     {current.restaurants.map((rest, i) => (
-                       <button key={`rest-${i}`} onClick={() => handlePinClick(rest.name, `rest-${i}`)} className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-all ${selectedPin === `rest-${i}` ? 'bg-blue-900/20 border border-blue-600/50' : 'hover:bg-zinc-800 border border-transparent'}`}>
-                         <div className={`w-2 h-2 rounded-full ${selectedPin === `rest-${i}` ? 'bg-blue-500' : 'bg-blue-900'}`}></div>
-                         <div className="flex-1"><span className={`text-xs font-bold block ${selectedPin === `rest-${i}` ? 'text-blue-500' : 'text-zinc-300'}`}>{rest.name}</span></div>
-                       </button>
-                     ))}
-                     {current.attractions.map((attr, i) => (
-                       <button key={`attr-${i}`} onClick={() => handlePinClick(attr.name, `attr-${i}`)} className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-all ${selectedPin === `attr-${i}` ? 'bg-amber-900/20 border border-amber-600/50' : 'hover:bg-zinc-800 border border-transparent'}`}>
-                         <div className={`w-2 h-2 rounded-full ${selectedPin === `attr-${i}` ? 'bg-amber-500' : 'bg-amber-900'}`}></div>
-                         <div className="flex-1"><span className={`text-xs font-bold block ${selectedPin === `attr-${i}` ? 'text-amber-500' : 'text-zinc-300'}`}>{attr.name}</span></div>
-                       </button>
-                     ))}
-                  </div>
+                   ))}
+                   {current.attractions.map((attr, i) => (
+                     <button key={`attr-${i}`} onClick={() => handlePinClick(attr.name, `attr-${i}`)} className={`w-full flex items-center gap-3 p-2 rounded-lg text-left transition-all ${selectedPin === `attr-${i}` ? 'bg-amber-900/20 border border-amber-600/50' : 'hover:bg-zinc-800 border border-transparent'}`}>
+                       <div className={`w-2 h-2 rounded-full ${selectedPin === `attr-${i}` ? 'bg-amber-500' : 'bg-amber-900'}`}></div>
+                       <div className="flex-1"><span className={`text-xs font-bold block ${selectedPin === `attr-${i}` ? 'text-amber-500' : 'text-zinc-300'}`}>{attr.name}</span></div>
+                     </button>
+                   ))}
+                 </div>
                </div>
              </div>
 
@@ -1070,10 +1205,20 @@ const DramaTravelGuide = () => {
                  <h3 className="text-2xl font-black mb-8 flex items-center gap-3 uppercase tracking-tighter text-white"><Utensils size={28} className="text-red-600" /> Dining Guide</h3>
                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
                    {current.restaurants.map((rest, i) => (
-                     <a key={i} href={rest.url} target="_blank" rel="noopener noreferrer" className="bg-zinc-900 group cursor-pointer rounded-xl overflow-hidden border border-zinc-800 hover:border-red-600/50 transition-all block shadow-lg">
-                       <div className="h-40 overflow-hidden relative"><img src={rest.image} alt={rest.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" /><div className="absolute top-3 right-3 px-2 py-1 bg-red-600 text-[8px] font-black rounded uppercase shadow-lg z-10 tracking-widest text-white uppercase">Best</div></div>
-                       <div className="p-5"><h4 className="font-black text-sm mb-1 group-hover:text-red-500 transition-colors uppercase tracking-tight text-white">{rest.name}</h4><p className="text-[10px] text-zinc-400 font-black mb-3 border-b border-zinc-800 pb-2 uppercase tracking-tighter">{rest.menu || '대표메뉴'}</p><p className="text-[11px] text-zinc-500 line-clamp-2 leading-relaxed font-medium">{rest.desc}</p></div>
-                     </a>
+                     <div key={i} className="bg-zinc-900 group rounded-xl overflow-hidden border border-zinc-800 hover:border-red-600/50 transition-all shadow-lg flex flex-col">
+                       <a href={rest.url} target="_blank" rel="noopener noreferrer" className="block">
+                         <div className="h-40 overflow-hidden relative"><img src={rest.image} alt={rest.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" /><div className="absolute top-3 right-3 px-2 py-1 bg-red-600 text-[8px] font-black rounded uppercase shadow-lg z-10 tracking-widest text-white uppercase">Best</div></div>
+                         <div className="p-5"><h4 className="font-black text-sm mb-1 group-hover:text-red-500 transition-colors uppercase tracking-tight text-white">{rest.name}</h4><p className="text-[10px] text-zinc-400 font-black mb-3 border-b border-zinc-800 pb-2 uppercase tracking-tighter">{rest.menu || '대표메뉴'}</p><p className="text-[11px] text-zinc-500 line-clamp-2 leading-relaxed font-medium">{rest.desc}</p></div>
+                       </a>
+                       <div className="flex gap-2 p-3 mt-auto border-t border-zinc-800">
+                         <a href={getGoogleMapSearchUrl(rest.name)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center h-10 w-10 shrink-0 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition" title="구글맵">
+                           <GoogleMapIcon className="w-5 h-5" />
+                         </a>
+                         <a href={getNaverMapSearchUrl(rest.name)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center h-10 w-10 shrink-0 rounded-lg bg-[#03C75A] hover:bg-[#02b350] text-white transition" title="네이버지도">
+                           <NaverMapIcon className="w-5 h-5" />
+                         </a>
+                       </div>
+                     </div>
                    ))}
                  </div>
                </div>
@@ -1084,13 +1229,23 @@ const DramaTravelGuide = () => {
                  <h3 className="text-2xl font-black mb-8 flex items-center gap-3 uppercase tracking-tighter text-white"><Star size={28} className="text-red-600" /> Nearby Attraction</h3>
                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 font-bold text-white">
                    {current.attractions.map((attr, i) => (
-                     <a key={i} href={attr.url} target="_blank" rel="noopener noreferrer" className="bg-zinc-900 rounded-xl border border-zinc-800 hover:bg-zinc-800/80 hover:border-red-600/30 transition-all cursor-pointer flex flex-col h-full group block overflow-hidden shadow-lg">
-                       <div className="h-40 w-full overflow-hidden text-white"><img src={attr.image} alt={attr.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" /></div>
-                       <div className="p-6 flex flex-col justify-between flex-grow">
-                         <h4 className="font-black text-sm mb-3 flex justify-between items-center group-hover:text-red-500 transition-colors uppercase tracking-tight text-white">{attr.name} <ChevronRight size={16} /></h4>
-                         <p className="text-[11px] text-zinc-500 leading-relaxed font-medium line-clamp-3">{attr.desc}</p>
+                     <div key={i} className="bg-zinc-900 rounded-xl border border-zinc-800 hover:border-red-600/30 transition-all flex flex-col h-full overflow-hidden shadow-lg">
+                       <a href={attr.url} target="_blank" rel="noopener noreferrer" className="block group flex-grow">
+                         <div className="h-40 w-full overflow-hidden text-white"><img src={attr.image} alt={attr.name} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500" /></div>
+                         <div className="p-6">
+                           <h4 className="font-black text-sm mb-3 flex justify-between items-center group-hover:text-red-500 transition-colors uppercase tracking-tight text-white">{attr.name} <ChevronRight size={16} /></h4>
+                           <p className="text-[11px] text-zinc-500 leading-relaxed font-medium line-clamp-3">{attr.desc}</p>
+                         </div>
+                       </a>
+                       <div className="flex gap-2 p-3 mt-auto border-t border-zinc-800">
+                         <a href={getGoogleMapSearchUrl(attr.name)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center h-10 w-10 shrink-0 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-300 hover:text-white transition" title="구글맵">
+                           <GoogleMapIcon className="w-5 h-5" />
+                         </a>
+                         <a href={getNaverMapSearchUrl(attr.name)} target="_blank" rel="noopener noreferrer" className="inline-flex items-center justify-center h-10 w-10 shrink-0 rounded-lg bg-[#03C75A] hover:bg-[#02b350] text-white transition" title="네이버지도">
+                           <NaverMapIcon className="w-5 h-5" />
+                         </a>
                        </div>
-                     </a>
+                     </div>
                    ))}
                  </div>
                </div>
@@ -1106,20 +1261,121 @@ const DramaTravelGuide = () => {
  return (
    <div className="min-h-screen bg-zinc-950 text-white font-sans pb-20 selection:bg-red-600 selection:text-white overflow-x-hidden">
      <header className={`bg-gradient-to-b from-black/80 to-transparent sticky top-0 z-50 transition-colors duration-300 ${view === 'home' ? 'bg-transparent shadow-none' : 'bg-zinc-950 shadow-2xl'}`}>
-       <div className="max-w-7xl mx-auto px-6 py-5 flex justify-between items-center text-zinc-200 font-bold">
-         <div className="flex items-center gap-10 text-left">
+       <div className="max-w-7xl mx-auto px-6 py-5 flex flex-col md:flex-row gap-4 md:gap-6 justify-between items-center text-zinc-200 font-bold">
+         <div className="flex items-center gap-6 md:gap-10 text-left w-full md:w-auto shrink-0">
            <h1 onClick={() => setView('home')} className="text-2xl md:text-3xl font-black tracking-tighter text-red-600 cursor-pointer hover:scale-105 transition-transform uppercase tracking-widest">K Drama Hunters</h1>
            <nav className="hidden lg:flex gap-5 text-sm font-medium text-left">
              <button onClick={() => setView('home')} className={`hover:text-white transition ${view === 'home' ? 'text-white font-bold' : ''}`}>홈</button>
              <button onClick={() => { setView('detail'); setSelectedDrama('Tangerines'); setActiveScene(0); }} className={`hover:text-white transition ${view === 'detail' ? 'text-white font-bold border-b-2 border-red-600 pb-1' : ''}`}>드라마 촬영지</button>
            </nav>
          </div>
-         {wishedIds.length > 0 && (
-           <div className="flex items-center gap-2 text-zinc-400">
-             <Heart size={20} className="fill-red-500/80 text-red-500/80" />
-             <span className="text-sm font-bold">찜 {wishedIds.length}</span>
+         <div className="relative w-full md:flex-1 md:max-w-2xl" ref={searchRef}>
+           <div className="flex items-center gap-2 w-full bg-white/10 hover:bg-white/15 focus-within:bg-white/20 rounded-lg border border-white/20 px-3 py-2 transition-colors">
+             <Search size={18} className="text-zinc-400 shrink-0" />
+             <input
+               type="text"
+               value={searchQuery}
+               onChange={(e) => setSearchQuery(e.target.value)}
+               onFocus={() => setSearchFocused(true)}
+               placeholder="작품, 장소, 주연, 지역 검색..."
+               className="flex-1 min-w-0 bg-transparent text-white placeholder-zinc-500 text-sm font-medium outline-none"
+               aria-label="검색"
+             />
            </div>
-         )}
+           {searchFocused && (searchQuery.trim() || searchResults.length > 0) && (
+             <div className="absolute left-0 right-0 top-full mt-2 py-2 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl z-50 max-h-80 overflow-y-auto">
+               {searchQuery.trim() && searchResults.length === 0 ? (
+                 <p className="px-4 py-6 text-center text-zinc-500 text-sm">검색 결과가 없습니다.</p>
+               ) : (
+                 searchResults.slice(0, 15).map((item, i) => (
+                   <button
+                     key={`${item.dramaId}-${item.sceneIndex}-${item.type}-${i}`}
+                     type="button"
+                     onClick={() => goToSearchResult(item)}
+                     className="w-full flex flex-col items-start gap-0.5 px-4 py-3 text-left hover:bg-zinc-800 transition"
+                   >
+                     <span className="text-xs font-bold text-red-500 uppercase tracking-wider">{item.type}</span>
+                     <span className="text-sm font-bold text-white">{item.label}</span>
+                     {item.subLabel && <span className="text-xs text-zinc-500">{item.subLabel}</span>}
+                   </button>
+                 ))
+               )}
+             </div>
+           )}
+         </div>
+         <div className="flex items-center gap-4 shrink-0">
+           {wishedIds.length > 0 && (
+             <div className="flex items-center gap-2 text-zinc-400">
+               <Heart size={20} className="fill-red-500/80 text-red-500/80" />
+               <span className="text-sm font-bold">찜 {wishedIds.length}</span>
+             </div>
+           )}
+           <div className="relative" ref={shareRef}>
+             <button
+               type="button"
+               onClick={(e) => { e.stopPropagation(); setShareOpen((v) => !v); }}
+               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-zinc-400 hover:text-white hover:bg-white/10 transition text-xs font-bold uppercase tracking-widest"
+               aria-label="공유"
+             >
+               <Share2 size={14} />
+               <span>공유</span>
+             </button>
+             {shareOpen && (
+               <div className="absolute right-0 top-full mt-2 w-48 py-1.5 bg-zinc-900 border border-zinc-700 rounded-lg shadow-xl z-50 animate-in fade-in duration-200">
+                 <button
+                   type="button"
+                   onClick={copyUrl}
+                   className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-sm text-zinc-200 hover:bg-zinc-800 transition"
+                 >
+                   {copied ? <Check size={16} className="text-green-500 shrink-0" /> : <Copy size={16} className="shrink-0 text-zinc-500" />}
+                   <span>{copied ? '복사됨' : 'URL 복사'}</span>
+                 </button>
+                 <a
+                   href={shareLinks.kakao}
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800 transition"
+                   onClick={() => setShareOpen(false)}
+                 >
+                   <span className="w-4 h-4 rounded bg-[#FEE500] flex items-center justify-center text-[0.65rem] font-black text-[#191919]">K</span>
+                   <span>카카오톡</span>
+                 </a>
+                 <a
+                   href={shareLinks.facebook}
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800 transition"
+                   onClick={() => setShareOpen(false)}
+                 >
+                   <span className="w-4 h-4 rounded bg-[#1877F2] flex items-center justify-center text-white text-[0.6rem] font-bold">f</span>
+                   <span>페이스북</span>
+                 </a>
+                 <a
+                   href={shareLinks.twitter}
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-zinc-200 hover:bg-zinc-800 transition"
+                   onClick={() => setShareOpen(false)}
+                 >
+                   <span className="w-4 h-4 rounded bg-[#000] flex items-center justify-center text-white text-[0.6rem] font-bold">𝕏</span>
+                   <span>트위터(X)</span>
+                 </a>
+                 <button
+                   type="button"
+                   className="w-full flex items-center gap-2.5 px-4 py-2.5 text-left text-sm text-zinc-200 hover:bg-zinc-800 transition"
+                   onClick={async () => {
+                     await copyUrl();
+                     setShareOpen(false);
+                     window.open('https://www.instagram.com/', '_blank');
+                   }}
+                 >
+                   <span className="w-4 h-4 rounded flex items-center justify-center bg-gradient-to-br from-[#F58529] via-[#DD2A7B] to-[#8134AF] text-white text-[0.6rem] font-bold">ig</span>
+                   <span>인스타그램 (링크 복사 후 열기)</span>
+                 </button>
+               </div>
+             )}
+           </div>
+         </div>
        </div>
      </header>
 
